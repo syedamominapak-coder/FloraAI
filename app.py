@@ -2,99 +2,217 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 import os
 
 # ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="Flower AI Classifier",
-    page_icon="🌸",
-    layout="centered"
+    page_title="FloraAI",
+    page_icon="assets/logo.png" if os.path.exists("assets/logo.png") else None,
+    layout="wide"
 )
 
 # ---------------- CUSTOM CSS ----------------
+# Professional mobile-card layout: green background, a card with a
+# solid green header (title + subtitle), an image panel, a prediction
+# line, and two full-width action buttons stacked vertically.
 
 st.markdown("""
 <style>
 
+#MainMenu, header, footer {visibility: hidden;}
+
 .stApp{
-    background: linear-gradient(135deg,#0f172a,#172554,#1e293b);
+    background: linear-gradient(180deg, #ffeef2 0%, #ffd6e0 100%);
+    min-height:100vh;
 }
 
 .block-container{
-    max-width:900px;
-    padding-top:1.2rem;
+    max-width: 980px;
+    margin: 0 auto;
+    padding-top: 2.5rem;
+    padding-bottom: 2rem;
 }
 
-.title{
-    text-align:center;
-    font-size:55px;
-    font-weight:800;
-    background:linear-gradient(90deg,#ff4b91,#ffb347,#7c4dff);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
+/* card shell */
+.app-card{
+    background:#ffffff;
+    border-radius: 20px;
+    overflow:hidden;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.22);
+    margin-bottom: 18px;
 }
 
-.subtitle{
-    text-align:center;
-    color:#d1d5db;
-    font-size:19px;
-    margin-bottom:25px;
+/* standalone navbar, sits above the content card like a website nav */
+.navbar{
+    background:#d6336c;
+    border-radius: 14px;
+    padding: 20px 32px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    box-shadow: 0 10px 24px rgba(214,51,108,0.28);
+    margin-bottom: 24px;
 }
 
-.prediction-box{
-    background:#1f2937;
-    padding:22px;
-    border-radius:18px;
-    border:1px solid #374151;
+.navbar .logo-badge{
+    background:#ffffff;
+    border-radius: 50%;
+    padding: 5px;
+    width:52px;
+    height:52px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
-.footer{
-    text-align:center;
+.navbar .logo-badge img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    border-radius:50%;
+}
+
+.navbar .header-text{
+    text-align:left;
+}
+
+.navbar .title{
+    color:#ffffff;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.2px;
+    margin:0;
+}
+
+.navbar .subtitle{
+    color:rgba(255,255,255,0.85);
+    font-size:13px;
+    font-weight:400;
+    margin-top:2px;
+}
+
+/* two-column body: image/upload on the left, results on the right */
+.app-body{
+    padding: 28px 32px 30px 32px;
+}
+
+.image-frame{
+    background:#f3f4f6;
+    border-radius: 14px;
+    overflow:hidden;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 14px;
+}
+
+.placeholder-box{
+    background:#f3f4f6;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    height: 320px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:14px;
+}
+
+.placeholder-box svg{
+    width:72px;
+    height:72px;
+    opacity:0.35;
+}
+
+.results-panel{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.prediction-text{
+    text-align:left;
+    color:#6b7280;
+    font-size:15px;
+    margin-bottom: 4px;
+}
+
+.prediction-text b{
+    color:#1f2937;
+    font-weight:700;
+    font-size:22px;
+}
+
+.confidence-text{
+    text-align:left;
     color:#9ca3af;
-    margin-top:40px;
+    font-size:13px;
+    margin-bottom: 22px;
+}
+
+/* button row inside results panel */
+div[data-testid="stButton"]{
+    width:100%;
+}
+
+div[data-testid="stButton"] > button{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: linear-gradient(135deg, #f9a8d4 0%, #ec4899 100%);
+    color:#ffffff;
+    border:none;
+    border-radius: 12px;
+    padding: 16px 24px;
+    min-height: 52px;
+    font-weight:600;
+    font-size:16px;
+    margin-bottom:12px;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 6px 14px rgba(236,72,153,0.32);
+}
+
+div[data-testid="stButton"] > button:hover{
+    background: linear-gradient(135deg, #ec4899 0%, #d6336c 100%);
+    color:#ffffff;
+    box-shadow: 0 8px 18px rgba(214,51,108,0.42);
+    transform: translateY(-1px);
+}
+
+div[data-testid="stButton"] > button:active{
+    background: linear-gradient(135deg, #d6336c 0%, #b8215c 100%);
+    color:#ffffff;
+    transform: translateY(0px);
+}
+
+div[data-testid="stButton"] > button:focus:not(:active){
+    color:#ffffff;
+}
+
+[data-testid="stFileUploader"] section,
+[data-testid="stCameraInput"] video{
+    border-radius: 10px;
+}
+
+.footer-text{
+    text-align:center;
+    color:#9d174d;
+    margin-top:10px;
+    font-size:12px;
+    opacity:0.75;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- SIDEBAR ----------------
-
-st.sidebar.title("🌸 Flower AI")
-
-st.sidebar.markdown("---")
-
-st.sidebar.success("Deep Learning Project")
-
-st.sidebar.metric("Validation Accuracy", "77.9%")
-
-st.sidebar.metric("Flower Classes", "5")
-
-st.sidebar.markdown("### Dataset")
-st.sidebar.info("TensorFlow Flowers Dataset")
-
-st.sidebar.markdown("### Model")
-st.sidebar.write("Custom CNN")
-
-st.sidebar.markdown("---")
-
-st.sidebar.write("### Flower Classes")
-
-st.sidebar.write("🌼 Daisy")
-st.sidebar.write("🌿 Dandelion")
-st.sidebar.write("🌹 Roses")
-st.sidebar.write("🌻 Sunflowers")
-st.sidebar.write("🌷 Tulips")
-
-st.sidebar.markdown("---")
-st.sidebar.caption("TensorFlow • Keras • Streamlit")
-
 # ---------------- LOAD MODEL ----------------
 
-model = tf.keras.models.load_model(
-    "models/flower_cnn_model.keras"
-)
+@st.cache_resource
+def load_flower_model():
+    return tf.keras.models.load_model("models/flower_cnn_model.keras")
+
+model = load_flower_model()
 
 class_names = [
     "Daisy",
@@ -104,132 +222,153 @@ class_names = [
     "Tulips"
 ]
 
-# ---------------- HEADER ----------------
+# ---------------- SESSION STATE ----------------
+
+if "mode" not in st.session_state:
+    st.session_state.mode = None  # None, "camera", "upload"
+
+def set_mode(mode):
+    st.session_state.mode = mode
+
+# ---------------- STANDALONE NAVBAR ----------------
+
+def get_base64_image(path):
+    import base64
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+LOGO_PATH = "assets/logo.png"
+
+if os.path.exists(LOGO_PATH):
+    logo_b64 = get_base64_image(LOGO_PATH)
+    logo_html = f'<img src="data:image/png;base64,{logo_b64}" alt="logo">'
+else:
+    logo_html = ""
 
 st.markdown(
-'<div class="title">🌸 Flower AI Classifier</div>',
-unsafe_allow_html=True
+    f"""
+    <div class="navbar">
+        <div class="logo-badge">{logo_html}</div>
+        <div class="header-text">
+            <p class="title">Detect Flowers</p>
+            <p class="subtitle">Custom TensorFlow CNN</p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
-st.markdown(
-'<div class="subtitle">Upload a flower image and let the CNN recognize it instantly.</div>',
-unsafe_allow_html=True
-)
+# ---------------- CARD: BODY ----------------
 
-# ---------------- BANNER ----------------
+st.markdown('<div class="app-card">', unsafe_allow_html=True)
+st.markdown('<div class="app-body">', unsafe_allow_html=True)
 
-if os.path.exists("assets/flowerbanner.jpg"):
-    st.image(
-        "assets/flowerbanner.jpg",
-        use_container_width=True
-    )
+left_col, right_col = st.columns([1.1, 0.9], gap="large")
 
-st.write("")
+with left_col:
+    # ---------------- IMAGE INPUT AREA ----------------
 
-# ---------------- FILE UPLOADER ----------------
+    image = None
 
-uploaded_file = st.file_uploader(
-    "📤 Upload Flower Image",
-    type=["jpg","jpeg","png"]
-)
+    if st.session_state.mode == "camera":
+        camera_image = st.camera_input("Take a photo", label_visibility="collapsed")
+        if camera_image is not None:
+            image = Image.open(camera_image).convert("RGB")
 
-# ---------------- PREDICTION ----------------
+    elif st.session_state.mode == "upload":
+        uploaded_file = st.file_uploader(
+            "Camera Roll",
+            type=["jpg", "jpeg", "png"],
+            label_visibility="collapsed"
+        )
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file).convert("RGB")
 
-if uploaded_file is not None:
+    # ---------------- DISPLAY IMAGE OR PLACEHOLDER ----------------
 
-    image = Image.open(uploaded_file).convert("RGB")
-
-    st.image(
-        image,
-        caption="Uploaded Image",
-        use_container_width=True
-    )
-
-    img = image.resize((180,180))
-
-    img = np.array(img)
-
-    img = np.expand_dims(img,0)
-
-    prediction = model.predict(img,verbose=0)
-
-    probabilities = tf.nn.softmax(
-        prediction[0]
-    ).numpy()
-
-    index = np.argmax(probabilities)
-
-    flower = class_names[index]
-
-    confidence = probabilities[index]*100
-
-    st.markdown("---")
-
-    st.markdown(
-        '<div class="prediction-box">',
-        unsafe_allow_html=True
-    )
-
-    col1,col2 = st.columns(2)
-
-    with col1:
-
-        st.metric(
-            "🌼 Prediction",
-            flower
+    if image is not None:
+        st.markdown('<div class="image-frame">', unsafe_allow_html=True)
+        st.image(image, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(
+            """
+            <div class="placeholder-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5"
+                     xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-    with col2:
+with right_col:
+    st.markdown('<div class="results-panel">', unsafe_allow_html=True)
 
-        st.metric(
-            "🎯 Confidence",
-            f"{confidence:.2f}%"
+    # ---------------- PREDICTION ----------------
+
+    probabilities = None
+
+    if image is not None:
+
+        img = image.resize((180, 180))
+        img_array = np.expand_dims(np.array(img), 0)
+
+        prediction = model.predict(img_array, verbose=0)
+        probabilities = tf.nn.softmax(prediction[0]).numpy()
+
+        index = np.argmax(probabilities)
+        flower = class_names[index]
+        confidence = probabilities[index] * 100
+
+        st.markdown(
+            f'<div class="prediction-text">Prediction<br><b>{flower}</b></div>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<div class="confidence-text">{confidence:.1f}% confidence</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            '<div class="prediction-text">No image selected yet</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            '<div class="confidence-text">Use the buttons below to get started</div>',
+            unsafe_allow_html=True
         )
 
-    st.success(
-        f"The CNN predicts this flower is **{flower}**."
-    )
+    # ---------------- ACTION BUTTONS ----------------
 
-    st.markdown("</div>",unsafe_allow_html=True)
+    if st.button("Take a photo"):
+        set_mode("camera")
+        st.rerun()
 
-    st.write("")
+    if st.button("Camera Roll"):
+        set_mode("upload")
+        st.rerun()
 
-    st.subheader("📊 Confidence for All Flower Classes")
+    st.markdown('</div>', unsafe_allow_html=True)  # close results-panel
 
-    for name,prob in zip(class_names,probabilities):
+st.markdown('</div>', unsafe_allow_html=True)  # close app-body
 
-        percent = float(prob*100)
+st.markdown('</div>', unsafe_allow_html=True)  # close app-card
 
-        st.write(f"**{name}**")
+# ---------------- OPTIONAL: FULL PROBABILITY BREAKDOWN ----------------
 
-        st.progress(percent/100)
+if probabilities is not None:
+    with st.expander("View confidence for all classes"):
+        for name, prob in zip(class_names, probabilities):
+            percent = float(prob * 100)
+            st.write(f"**{name}**: {percent:.2f}%")
+            st.progress(percent / 100)
 
-        st.write(f"{percent:.2f}%")
-
-    st.write("")
-
-    st.subheader("📈 Prediction Probability Chart")
-
-    fig,ax = plt.subplots(figsize=(7,4))
-
-    ax.bar(
-        class_names,
-        probabilities*100
-    )
-
-    ax.set_ylabel("Confidence (%)")
-
-    ax.set_ylim(0,100)
-
-    plt.xticks(rotation=20)
-
-    st.pyplot(fig)
+# ---------------- FOOTER ----------------
 
 st.markdown(
-"""
-<div class="footer">
-Made with ❤️ using TensorFlow, Keras & Streamlit
-</div>
-""",
-unsafe_allow_html=True
+    '<div class="footer-text">Built with TensorFlow, Keras and Streamlit</div>',
+    unsafe_allow_html=True
 )
